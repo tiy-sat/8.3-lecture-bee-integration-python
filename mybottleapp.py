@@ -1,13 +1,16 @@
 from bottle import get, post, route, run, template, request, static_file, error, \
     redirect
 
+import sqlite3
+
+conn = sqlite3.connect('human_data')
+
 # As if:
 #  GET localhost:8080/ :
 #    hello()
 #  GET localhost:8080/hello/Jablonky :
 #    hello("Jablonky")
 
-humans = []
 STATIC_FILE_ROOT = "./"
 
 @get('/favicon.ico')
@@ -26,6 +29,7 @@ def hello(inp_name="Python"):
 
 @route('/human')
 def a_human():
+    # FIXME: Replace 'humans' with SQL
     human_id = int(request.query.id)
     human = humans[human_id]
 
@@ -34,6 +38,7 @@ def a_human():
 
 @route('/humans/<id:int>')
 def human_details(id):
+    # FIXME: Replace 'humans' with SQL
     assert isinstance(id, int)
 
     human = humans[id]
@@ -44,12 +49,17 @@ def human_details(id):
 
 @get('/humans') # or @route('/login')
 def show_humans():
-
     human_list = ""
+
+    c = conn.cursor()
+    c.execute("SELECT * FROM humans")
+
+    humans = c.fetchall()
+    conn.commit()
 
     for human in humans:
         human_list = human_list + template("<div>Name: {{name}}, color: {{color}}",
-            name=human['name'], color=human['color'])
+            name=human[1], color=human[2])
 
     return human_list + '''
     <form action="/humans" method="post">
@@ -64,13 +74,20 @@ def add_human():
     name = request.forms.get('name')
     color = request.forms.get('color')
 
-    humans.append( { "name": name, "color": color } )
+    c = conn.cursor()
+    c.execute("INSERT INTO humans (name, color) VALUES (?, ?)", (name, color))
+
+    conn.commit()
+
+#    humans.append( { "name": name, "color": color } )
 
     return redirect("/humans")
 #    return template("Added {{name}}", name=name)
 
 @get('/humans.json')
 def humans_json():
+    # FIXME: Replace 'humans' with SQL
+
     return { "humans": humans }
 
 
